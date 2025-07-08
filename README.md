@@ -142,9 +142,9 @@ test/
 QuantumBookStore store = new QuantumBookStore();
 
 // Add diverse books
-store.addBook("paper",    "978-111", "Clean Code",       "Robert C. Martin", 2008, 45.99, 10);
-store.addBook("ebook",    "978-222", "Design Patterns",  "Gamma et al.",     1994, 29.99, "epub");
-store.addBook("showcase", "978-333", "New Release Demo", "Jane Doe",         2024,  0.00);
+store.addBook("paper",    "978-111", "Clean Code", 2008, 45.99, 10);
+store.addBook("ebook",    "978-222", "Design Patterns", 1994, 29.99, "epub");
+store.addBook("showcase", "978-333", "New Release Demo", 2024,  0.00);
 
 // Remove outdated (>20 years old)
 List<Book> old = store.removeOutdatedBooks(20);
