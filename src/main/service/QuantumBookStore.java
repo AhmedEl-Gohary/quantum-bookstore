@@ -12,12 +12,12 @@ import java.util.stream.Collectors;
 /**
  * Main service class for the Quantum Bookstore
  */
-public class QuantumBookstore {
+public class QuantumBookStore {
     private final Map<String, Book> inventory;
     private final ShippingService shippingService;
     private final MailService mailService;
 
-    public QuantumBookstore() {
+    public QuantumBookStore() {
         this.inventory = new HashMap<>();
         this.shippingService = new ShippingService();
         this.mailService = new MailService();
@@ -33,13 +33,16 @@ public class QuantumBookstore {
      * @param price the book's price
      * @param additionalParams additional parameters specific to book type
      */
-    public void addBook(String type, String isbn, String title, String author,
+    public void addBook(String type, String isbn, String title,
                         int year, double price, Object... additionalParams) {
         try {
-            Book book = BookFactory.createBook(type, isbn, title, author, year, price, additionalParams);
+            if (inventory.containsKey(isbn)) {
+                throw new DuplicateBookException(isbn);
+            }
+            Book book = BookFactory.createBook(type, isbn, title, year, price, additionalParams);
             inventory.put(isbn, book);
             System.out.println("Quantum book store: Added book - " + book);
-        } catch (InvalidBookTypeException e) {
+        } catch (InvalidBookTypeException | DuplicateBookException e) {
             System.out.println("Quantum book store: Failed to add book - " + e.getMessage());
         }
     }
@@ -75,6 +78,10 @@ public class QuantumBookstore {
      */
     public PurchaseResult buyBook(String isbn, int quantity, String email, String address) {
         try {
+            if (quantity <= 0) {
+                throw new InvalidQuantityException(quantity);
+            }
+
             Book book = inventory.get(isbn);
             if (book == null) {
                 throw new BookNotFoundException(isbn);
@@ -83,32 +90,31 @@ public class QuantumBookstore {
             if (!(book instanceof Purchasable)) {
                 throw new BookNotPurchasableException(book.getTitle());
             }
+            Purchasable purchasable = (Purchasable) book;
 
-            Purchasable purchasableBook = (Purchasable) book;
+            purchasable.processPurchase(quantity);
+            double total = book.getPrice() * quantity;
 
-            // Process purchase
-            purchasableBook.processPurchase(quantity);
-            double totalAmount = book.getPrice() * quantity;
-
-            // Handle delivery based on book type
             if (book instanceof Shippable) {
                 ((Shippable) book).ship(address, shippingService);
             }
-
             if (book instanceof Emailable) {
                 ((Emailable) book).email(email, mailService);
             }
 
-            String message = String.format("Quantum book store: Successfully purchased %d copies of %s",
-                    quantity, book.getTitle());
-            System.out.println(message);
+            String successMsg = String.format(
+                    "Quantum book store: Successfully purchased %d copies of %s",
+                    quantity, book.getTitle()
+            );
+            System.out.println(successMsg);
+            return PurchaseResult.success(total, successMsg);
 
-            return PurchaseResult.success(totalAmount, message);
+        } catch (InvalidQuantityException | BookNotFoundException | InsufficientStockException |
+                 BookNotPurchasableException ex) {
+            String err = "Quantum book store: Purchase failed - " + ex.getMessage();
+            System.out.println(err);
+            return PurchaseResult.failure(err);
 
-        } catch (BookNotFoundException | InsufficientStockException | BookNotPurchasableException e) {
-            String errorMessage = "Quantum book store: Purchase failed - " + e.getMessage();
-            System.out.println(errorMessage);
-            return PurchaseResult.failure(errorMessage);
         }
     }
 
